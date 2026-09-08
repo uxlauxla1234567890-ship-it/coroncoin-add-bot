@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>CoronCoin</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script src='//libtl.com/sdk.js' data-zone='11753903' data-sdk='show_11753903'></script>
     <style>
         body {
             font-family: Arial, sans-serif;
@@ -97,7 +98,6 @@
             en: {
                 title: '💰 CoronCoin',
                 subtitle: 'Watch ads to earn coins!',
-                balanceLabel: 'Coins: ',
                 watchBtn: 'Watch Ad (+5 Coins)',
                 withdrawTitle: 'Withdraw TON',
                 minNote: 'Min: 50,000 coins = 0.5 TON',
@@ -105,6 +105,7 @@
                 withdrawBtn: 'Withdraw',
                 loadingAd: 'Loading ad...',
                 adSuccess: '✅ +5 coins added!',
+                adFailed: '❌ Ad was not completed',
                 errorPrefix: '❌ Error: ',
                 unknownError: 'unknown',
                 serverError: '❌ Server connection error',
@@ -115,7 +116,6 @@
             ru: {
                 title: '💰 CoronCoin',
                 subtitle: 'Смотри рекламу и зарабатывай монеты!',
-                balanceLabel: 'Монеты: ',
                 watchBtn: 'Смотреть рекламу (+5 монет)',
                 withdrawTitle: 'Вывод TON',
                 minNote: 'Мин: 50,000 монет = 0.5 TON',
@@ -123,6 +123,7 @@
                 withdrawBtn: 'Вывести',
                 loadingAd: 'Загрузка рекламы...',
                 adSuccess: '✅ +5 монет добавлено!',
+                adFailed: '❌ Реклама не была досмотрена',
                 errorPrefix: '❌ Ошибка: ',
                 unknownError: 'неизвестна',
                 serverError: '❌ Ошибка соединения с сервером',
@@ -154,10 +155,7 @@
             } catch (e) { console.error(e); }
         }
 
-        async function watchAd() {
-            watchBtn.disabled = true;
-            statusEl.innerText = t.loadingAd;
-
+        async function creditReward() {
             try {
                 const res = await fetch('/api/watch-ad', {
                     method: 'POST',
@@ -173,7 +171,25 @@
                 }
             } catch (e) {
                 statusEl.innerText = t.serverError;
-            } finally {
+            }
+        }
+
+        async function watchAd() {
+            watchBtn.disabled = true;
+            statusEl.innerText = t.loadingAd;
+
+            if (typeof show_11753903 === 'function') {
+                show_11753903().then(() => {
+                    // Reklama to'liq ko'rildi — mukofot beramiz
+                    creditReward().finally(() => { watchBtn.disabled = false; });
+                }).catch(() => {
+                    // Reklama ko'rilmadi yoki bekor qilindi — mukofot yo'q
+                    statusEl.innerText = t.adFailed;
+                    watchBtn.disabled = false;
+                });
+            } else {
+                // SDK yuklanmagan bo'lsa (masalan test rejimida)
+                statusEl.innerText = t.serverError;
                 watchBtn.disabled = false;
             }
         }
