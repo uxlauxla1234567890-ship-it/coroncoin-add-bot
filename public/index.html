@@ -1,143 +1,210 @@
 <!DOCTYPE html>
-<html lang="uz">
+<html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>CoronCoin</title>
-<script src="https://telegram.org/js/telegram-web-app.js"></script>
-<style>
-  body {
-    margin: 0;
-    font-family: -apple-system, sans-serif;
-    background: #0f0f1a;
-    color: #fff;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 20px;
-    box-sizing: border-box;
-  }
-  .balance-card {
-    background: linear-gradient(135deg, #6a3de8, #a259ff);
-    border-radius: 20px;
-    padding: 30px;
-    text-align: center;
-    width: 100%;
-    max-width: 400px;
-    margin-top: 20px;
-  }
-  .balance-amount { font-size: 42px; font-weight: bold; }
-  .balance-label { opacity: 0.8; font-size: 14px; }
-  button {
-    width: 100%;
-    max-width: 400px;
-    padding: 16px;
-    border-radius: 14px;
-    border: none;
-    font-size: 16px;
-    font-weight: bold;
-    margin-top: 16px;
-    cursor: pointer;
-  }
-  #watchAdBtn { background: #4ade80; color: #0f0f1a; }
-  #withdrawBtn { background: #3b82f6; color: white; }
-  input {
-    width: 100%;
-    max-width: 400px;
-    padding: 14px;
-    border-radius: 12px;
-    border: 1px solid #333;
-    margin-top: 12px;
-    background: #1a1a2e;
-    color: white;
-    box-sizing: border-box;
-  }
-  #status { margin-top: 16px; text-align: center; min-height: 20px; }
-</style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>CoronCoin</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #0f172a;
+            color: #ffffff;
+            text-align: center;
+            padding: 20px;
+            margin: 0;
+        }
+        .container {
+            max-width: 400px;
+            margin: 0 auto;
+            background: #1e293b;
+            padding: 20px;
+            border-radius: 15px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        h2 { color: #38bdf8; }
+        .balance {
+            font-size: 24px;
+            margin: 20px 0;
+            font-weight: bold;
+            color: #4ade80;
+        }
+        button {
+            background-color: #38bdf8;
+            color: #0f172a;
+            border: none;
+            padding: 12px 20px;
+            font-size: 16px;
+            font-weight: bold;
+            border-radius: 8px;
+            cursor: pointer;
+            width: 100%;
+            margin: 10px 0;
+        }
+        button:active { background-color: #0284c7; }
+        button:disabled { opacity: 0.5; cursor: not-allowed; }
+        input {
+            width: 90%;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            border: 1px solid #475569;
+            background: #0f172a;
+            color: #fff;
+        }
+        #status {
+            font-size: 13px;
+            margin-top: 10px;
+            min-height: 18px;
+            color: #94a3b8;
+        }
+        .min-note {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+    </style>
 </head>
 <body>
 
-<div class="balance-card">
-  <div class="balance-label">Balansingiz</div>
-  <div class="balance-amount" id="balance">0</div>
-  <div class="balance-label">CoronCoin</div>
-</div>
+    <div class="container">
+        <h2 id="titleText">💰 CoronCoin</h2>
+        <p id="subtitleText">Watch ads to earn coins!</p>
 
-<button id="watchAdBtn">📺 Reklama ko'rish (+5 coin)</button>
+        <div class="balance" id="balanceLabel">Coins: <span id="coins">0</span></div>
 
-<input type="text" id="tonAddress" placeholder="Tonkeeper manzilingiz (UQ... yoki EQ...)">
-<button id="withdrawBtn">💸 Pul yechish</button>
+        <button id="watchBtn" onclick="watchAd()">📺 <span id="watchBtnText">Watch Ad (+5 Coins)</span></button>
 
-<div id="status"></div>
+        <hr style="border-color: #475569; margin: 20px 0;">
 
-<script>
-const tg = window.Telegram.WebApp;
-tg.ready();
-tg.expand();
+        <h3 id="withdrawTitle">Withdraw TON</h3>
+        <p class="min-note" id="minNote">Min: 50,000 coins = 0.5 TON</p>
+        <input type="text" id="wallet" placeholder="Tonkeeper address">
+        <button onclick="requestWithdraw()" style="background-color: #f59e0b;">💸 <span id="withdrawBtnText">Withdraw</span></button>
 
-const initData = tg.initData || '';
-const balanceEl = document.getElementById('balance');
-const statusEl = document.getElementById('status');
+        <div id="status"></div>
+    </div>
 
-async function loadBalance() {
-  try {
-    const res = await fetch('/api/balance?initData=' + encodeURIComponent(initData));
-    const data = await res.json();
-    if (data.balance !== undefined) balanceEl.textContent = data.balance;
-  } catch (e) { console.error(e); }
-}
+    <script>
+        const tg = window.Telegram.WebApp;
+        tg.ready();
+        tg.expand();
 
-document.getElementById('watchAdBtn').addEventListener('click', async () => {
-  statusEl.textContent = 'Reklama yuklanmoqda...';
+        const initData = tg.initData || '';
+        const langCode = (tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.language_code) || 'en';
+        const lang = langCode.startsWith('ru') ? 'ru' : 'en';
 
-  // Monetag SDK chaqiruvi - Ad Tag ID ni bu yerga qo'yasiz
-  // show_ANNGAT().then(...) - Monetag bergan funksiya nomi bilan almashtiring
+        const translations = {
+            en: {
+                title: '💰 CoronCoin',
+                subtitle: 'Watch ads to earn coins!',
+                balanceLabel: 'Coins: ',
+                watchBtn: 'Watch Ad (+5 Coins)',
+                withdrawTitle: 'Withdraw TON',
+                minNote: 'Min: 50,000 coins = 0.5 TON',
+                walletPlaceholder: 'Tonkeeper address',
+                withdrawBtn: 'Withdraw',
+                loadingAd: 'Loading ad...',
+                adSuccess: '✅ +5 coins added!',
+                errorPrefix: '❌ Error: ',
+                unknownError: 'unknown',
+                serverError: '❌ Server connection error',
+                enterWallet: '⚠️ Enter your Tonkeeper address',
+                sending: 'Sending...',
+                withdrawSuccess: t => `✅ Request sent: ${t} TON`
+            },
+            ru: {
+                title: '💰 CoronCoin',
+                subtitle: 'Смотри рекламу и зарабатывай монеты!',
+                balanceLabel: 'Монеты: ',
+                watchBtn: 'Смотреть рекламу (+5 монет)',
+                withdrawTitle: 'Вывод TON',
+                minNote: 'Мин: 50,000 монет = 0.5 TON',
+                walletPlaceholder: 'Адрес Tonkeeper',
+                withdrawBtn: 'Вывести',
+                loadingAd: 'Загрузка рекламы...',
+                adSuccess: '✅ +5 монет добавлено!',
+                errorPrefix: '❌ Ошибка: ',
+                unknownError: 'неизвестна',
+                serverError: '❌ Ошибка соединения с сервером',
+                enterWallet: '⚠️ Введите адрес Tonkeeper',
+                sending: 'Отправка...',
+                withdrawSuccess: t => `✅ Запрос отправлен: ${t} TON`
+            }
+        };
 
-  try {
-    const res = await fetch('/api/watch-ad', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ initData })
-    });
-    const data = await res.json();
-    if (data.balance !== undefined) {
-      balanceEl.textContent = data.balance;
-      statusEl.textContent = '✅ +5 CoronCoin qo\'shildi!';
-    } else {
-      statusEl.textContent = '❌ Xatolik yuz berdi';
-    }
-  } catch (e) {
-    statusEl.textContent = '❌ Xatolik yuz berdi';
-  }
-});
+        const t = translations[lang];
 
-document.getElementById('withdrawBtn').addEventListener('click', async () => {
-  const tonAddress = document.getElementById('tonAddress').value.trim();
-  if (!tonAddress) {
-    statusEl.textContent = '⚠️ Tonkeeper manzilini kiriting';
-    return;
-  }
-  statusEl.textContent = 'Yuborilmoqda...';
-  try {
-    const res = await fetch('/api/withdraw', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ initData, tonAddress })
-    });
-    const data = await res.json();
-    if (data.ok) {
-      statusEl.textContent = `✅ So'rov yuborildi: ${data.tonAmount.toFixed(5)} TON`;
-      loadBalance();
-    } else {
-      statusEl.textContent = '❌ ' + (data.error || 'Xatolik');
-    }
-  } catch (e) {
-    statusEl.textContent = '❌ Xatolik yuz berdi';
-  }
-});
+        document.getElementById('titleText').innerText = t.title;
+        document.getElementById('subtitleText').innerText = t.subtitle;
+        document.getElementById('watchBtnText').innerText = t.watchBtn;
+        document.getElementById('withdrawTitle').innerText = t.withdrawTitle;
+        document.getElementById('minNote').innerText = t.minNote;
+        document.getElementById('wallet').placeholder = t.walletPlaceholder;
+        document.getElementById('withdrawBtnText').innerText = t.withdrawBtn;
 
-loadBalance();
-</script>
+        const coinsEl = document.getElementById('coins');
+        const statusEl = document.getElementById('status');
+        const watchBtn = document.getElementById('watchBtn');
 
+        async function loadBalance() {
+            try {
+                const res = await fetch('/api/balance?initData=' + encodeURIComponent(initData));
+                const data = await res.json();
+                if (data.balance !== undefined) coinsEl.innerText = data.balance;
+            } catch (e) { console.error(e); }
+        }
+
+        async function watchAd() {
+            watchBtn.disabled = true;
+            statusEl.innerText = t.loadingAd;
+
+            try {
+                const res = await fetch('/api/watch-ad', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ initData })
+                });
+                const data = await res.json();
+                if (data.balance !== undefined) {
+                    coinsEl.innerText = data.balance;
+                    statusEl.innerText = t.adSuccess;
+                } else {
+                    statusEl.innerText = t.errorPrefix + (data.error || t.unknownError);
+                }
+            } catch (e) {
+                statusEl.innerText = t.serverError;
+            } finally {
+                watchBtn.disabled = false;
+            }
+        }
+
+        async function requestWithdraw() {
+            const wallet = document.getElementById('wallet').value.trim();
+            if (!wallet) {
+                statusEl.innerText = t.enterWallet;
+                return;
+            }
+
+            statusEl.innerText = t.sending;
+            try {
+                const res = await fetch('/api/withdraw', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ initData, tonAddress: wallet })
+                });
+                const data = await res.json();
+                if (data.ok) {
+                    statusEl.innerText = t.withdrawSuccess(data.tonAmount.toFixed(5));
+                    loadBalance();
+                } else {
+                    statusEl.innerText = t.errorPrefix + (data.error || t.unknownError);
+                }
+            } catch (e) {
+                statusEl.innerText = t.serverError;
+            }
+        }
+
+        loadBalance();
+    </script>
 </body>
-  </html>
+</html>
